@@ -10,17 +10,21 @@ let n = 1;
 let total = 0;
 
 describe('3396', () => {
+  let server;
   before((done) => {
-    const server = http.createServer((request, response) => {
+    server = http.createServer((request, response) => {
       // simulate slow connection:
       const throttler = new Transform({
         transform(chunk, encoding, send) {
+          // Make a bunch of garbage data
+          let data = Array.from({length: 100}, () => chunk).join('');
           setTimeout(() => {
-            send(null, chunk);
-          }, 100);
+            send(null, data);
+          }, 10);
         }
       });
-
+      
+      // Any file with more than 60k should work (createReadSteam chunks to about 30k)
       let fh = fs.createReadStream(__dirname + '/../../../package-lock.json', 'utf-8');
       fh.pipe(throttler).pipe(response)
         .on('end', () => {
@@ -29,7 +33,7 @@ describe('3396', () => {
     })
     server.listen(3000, done);
   });
-  it('crashes node.exe', async () => {
+  it('stress test node.exe', async () => {
     do {
       await axios.get('http://localhost:3000/')
         .then(res => {
